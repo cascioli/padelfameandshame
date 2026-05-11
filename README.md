@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Gemini](https://img.shields.io/badge/Gemini_2.0_Flash-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev)
 
-[**Live Demo**](https://your-demo-url.vercel.app) · [Report Bug](../../issues) · [Request Feature](../../issues)
+[**Live Demo**](https://padel.cresciconleapp.it) · [Report Bug](../../issues) · [Request Feature](../../issues)
 
 </div>
 
