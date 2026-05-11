@@ -1,65 +1,127 @@
-import Image from "next/image";
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { Nav } from '@/components/nav'
+import { Button } from '@/components/ui/button'
+import type { Match, Profile } from '@/lib/supabase/types'
 
-export default function Home() {
+function VibeTag({ vibe }: { vibe: string }) {
+  const map: Record<string, string> = { epic: '⚡ Epic', roast: '🔥 Roast', friendly: '🤝 Friendly' }
+  const colors: Record<string, string> = {
+    epic: 'bg-primary/20 text-primary border-primary/30',
+    roast: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    friendly: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  }
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <span className={`text-xs px-2 py-0.5 rounded border font-medium ${colors[vibe] ?? ''}`}>
+      {map[vibe] ?? vibe}
+    </span>
+  )
+}
+
+export default async function HomePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  // Fetch profile + matches in parallel
+  const [{ data: profile }, { data: matches }] = await Promise.all([
+    supabase.from('profiles').select().eq('id', user.id).maybeSingle(),
+    supabase.from('matches').select('*').order('created_at', { ascending: false }).limit(5),
+  ])
+
+  if (!profile) redirect('/setup')
+
+  const playerIds = [...new Set(
+    (matches ?? []).flatMap((m: Match) => [...m.winner_ids, ...m.loser_ids, m.beer_debtor_id])
+  )]
+
+  const { data: players } = playerIds.length
+    ? await supabase.from('profiles').select('id, username').in('id', playerIds)
+    : { data: [] as Pick<Profile, 'id' | 'username'>[] }
+
+  const nameMap = Object.fromEntries((players ?? []).map(p => [p.id, p.username]))
+
+  return (
+    <div className="min-h-screen pb-20">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur border-b border-border">
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🎾</span>
+            <span className="font-black text-sm tracking-tight">
+              Hall of <span className="text-primary">Fame & Shame</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="text-primary font-bold">@{profile.username}</span>
+            <span>⚡{profile.karma}</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
+        <Link href="/match/new">
+          <Button className="w-full h-14 text-lg font-black shadow-lg shadow-primary/20">
+            ⚡ Log a Match
+          </Button>
+        </Link>
+
+        <div className="space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Recent Chronicles
+          </h2>
+
+          {!matches?.length && (
+            <div className="text-center py-12 text-muted-foreground space-y-2">
+              <div className="text-4xl">🏓</div>
+              <p className="text-sm">No matches yet. Be the first to log one!</p>
+            </div>
+          )}
+
+          {matches?.map((match: Match) => {
+            const winnerNames = match.winner_ids.map(id => nameMap[id] ?? '?').join(' & ')
+            const loserNames = match.loser_ids.map(id => nameMap[id] ?? '?').join(' & ')
+            const beerName = nameMap[match.beer_debtor_id] ?? '?'
+            const date = new Date(match.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+
+            return (
+              <article key={match.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="text-xs font-bold text-primary truncate">{winnerNames}</span>
+                    <span className="text-xs text-muted-foreground">vs</span>
+                    <span className="text-xs font-medium text-muted-foreground truncate">{loserNames}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{date}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black">{match.score}</span>
+                  <VibeTag vibe={match.vibe} />
+                </div>
+
+                {match.chronicle_text && (
+                  <p className="text-sm text-foreground/80 leading-relaxed border-l-2 border-primary/40 pl-3 italic">
+                    {match.chronicle_text}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-amber-400">🍺 @{beerName} owes beers</span>
+                  <Link
+                    href={`/match/${match.id}`}
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                  >
+                    details →
+                  </Link>
+                </div>
+              </article>
+            )
+          })}
         </div>
       </main>
+
+      <Nav userId={user.id} />
     </div>
-  );
+  )
 }
