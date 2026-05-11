@@ -1,7 +1,8 @@
 import { ImageResponse } from 'next/og'
-import { createAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
+
+type ProfileRow = { username: string; wins: number; losses: number; karma: number }
 
 function getTitle(wins: number, losses: number, karma: number): string {
   if (karma > 150 && wins > 10) return 'LEGEND'
@@ -28,13 +29,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const admin = createAdminClient()
 
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('username, wins, losses, karma')
-    .eq('id', id)
-    .single()
+  // Profiles are publicly readable (RLS: for select using (true))
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${id}&select=username,wins,losses,karma`,
+    {
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+      },
+      next: { revalidate: 60 },
+    }
+  )
+
+  const rows: ProfileRow[] = await res.json()
+  const profile = rows[0]
 
   if (!profile) {
     return new Response('Player not found', { status: 404 })

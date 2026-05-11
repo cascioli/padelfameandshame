@@ -24,8 +24,9 @@ create table public.matches (
   vibe text check (vibe in ('epic', 'roast', 'friendly')) not null default 'friendly'
 );
 
--- Grant table-level access to roles (required before RLS policies take effect)
+-- Grant table-level access
 grant usage on schema public to authenticated, anon;
+grant select on public.profiles to anon;
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert on public.matches to authenticated;
 
@@ -33,11 +34,12 @@ grant select, insert on public.matches to authenticated;
 alter table public.profiles enable row level security;
 alter table public.matches enable row level security;
 
--- Profiles policies
-create policy "Profiles viewable by authenticated users"
+-- Profiles: publicly readable (used by trading card, no auth needed)
+create policy "Profiles publicly viewable"
   on public.profiles for select
-  using (auth.role() = 'authenticated');
+  using (true);
 
+-- Profiles: insert/update own only
 create policy "Users can insert their own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
@@ -55,8 +57,35 @@ create policy "Authenticated users can insert matches"
   on public.matches for insert
   with check (auth.role() = 'authenticated');
 
--- Index for performance
-create index matches_winner_ids_gin on public.matches using gin(winner_ids);
-create index matches_loser_ids_gin on public.matches using gin(loser_ids);
-create index matches_beer_debtor_id on public.matches(beer_debtor_id);
-create index matches_created_at on public.matches(created_at desc);
+-- Karma update function (SECURITY DEFINER = runs with DB owner privileges)
+-- No service role key needed — any authenticated user can call this via supabase.rpc()
+create or replace function log_match_karma(
+  p_winner_ids uuid[],
+  p_loser_ids uuid[],
+  p_beer_debtor_id uuid
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update profiles
+    set karma = greatest(0, karma + 10),
+        wins  = wins + 1
+    where id = any(p_winner_ids);
+
+  update profiles
+    set karma  = greatest(0, karma - case when id = p_beer_debtor_id then 8 else 5 end),
+        losses = losses + 1
+    where id = any(p_loser_ids);
+end;
+$$;
+
+-- Allow authenticated users to call the function
+grant execute on function log_match_karma(uuid[], uuid[], uuid) to authenticated;
+
+-- Indexes
+create index matches_winner_ids_gin  on public.matches using gin(winner_ids);
+create index matches_loser_ids_gin   on public.matches using gin(loser_ids);
+create index matches_beer_debtor_id  on public.matches(beer_debtor_id);
+create index matches_created_at      on public.matches(created_at desc);

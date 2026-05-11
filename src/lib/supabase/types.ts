@@ -59,7 +59,16 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      log_match_karma: {
+        Args: {
+          p_winner_ids: string[]
+          p_loser_ids: string[]
+          p_beer_debtor_id: string
+        }
+        Returns: undefined
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
