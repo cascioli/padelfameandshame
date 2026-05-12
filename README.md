@@ -59,8 +59,8 @@ Deploy     Vercel
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/padelfameandshame.git
-cd padelfameandshame
+git clone https://github.com/YOUR_USERNAME/padel-fame-and-shame.git
+cd padel-fame-and-shame
 npm install
 ```
 

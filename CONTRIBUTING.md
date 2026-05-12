@@ -11,8 +11,8 @@ Thanks for wanting to contribute. Here's how to do it without wasting anyone's t
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/padelfameandshame.git
-cd padelfameandshame
+git clone https://github.com/YOUR_USERNAME/padel-fame-and-shame.git
+cd padel-fame-and-shame
 npm install
 cp .env.local.example .env.local   # fill in your keys
 npm run dev
